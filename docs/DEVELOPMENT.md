@@ -47,6 +47,11 @@ API 文件依賴 `swagger-jsdoc` 解析路由檔案中的註解來產生 `openap
 | `FRONTEND_URL` | CORS 允許的來源網址 | 選填 | `http://localhost:5173` |
 | `ADMIN_EMAIL` | Seed 資料建立的預設管理員帳號 | 選填 | `admin@hexschool.com` |
 | `ADMIN_PASSWORD` | Seed 資料建立的預設管理員密碼 | 選填 | `12345678` |
+| `ECPAY_MERCHANT_ID`| 綠界特店編號 | 選填 | `3002607` (測試) |
+| `ECPAY_HASH_KEY` | 綠界 Hash Key | 選填 | `pwFHCqoQZGmho4w6` (測試) |
+| `ECPAY_HASH_IV` | 綠界 Hash IV | 選填 | `EkRm7iFT261dpevs` (測試) |
+| `ECPAY_URL` | 綠界支付 AIO 端點 | 選填 | `https://payment-stage...` |
+| `ECPAY_QUERY_URL` | 綠界查詢交易端點 | 選填 | `https://payment-stage...` |
 
 ## 計畫歸檔流程
 為了保持開發紀錄的整潔並遵循 AI 輔助開發的規範：

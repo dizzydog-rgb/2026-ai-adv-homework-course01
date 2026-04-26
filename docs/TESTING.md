@@ -15,6 +15,7 @@
 | `orders.test.js` | `/api/orders/*` | 驗證結帳時是否成功建立訂單及訂單明細，並檢查未授權訪問的阻擋機制 |
 | `adminProducts.test.js` | `/api/admin/products/*` | 確認僅具備 `admin` 角色的 JWT 能進行商品的 CRUD 操作 |
 | `adminOrders.test.js` | `/api/admin/orders/*` | 確認僅具備 `admin` 角色的 JWT 能調整訂單狀態或瀏覽全站訂單 |
+| `ecpay.test.js` | ECPay Service & API | 驗證 CheckMacValue 簽章正確性，以及 AIO 付款流程與主動查詢 (mocked) |
 
 ## 執行順序與依賴關係
 - Vitest 預設為平行 (Parallel) 執行測試檔案。

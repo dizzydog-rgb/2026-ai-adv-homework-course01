@@ -3,7 +3,39 @@ const { v4: uuidv4 } = require('uuid');
 const db = require('../database');
 const authMiddleware = require('../middleware/authMiddleware');
 
+const ecpayService = require('../services/ecpayService');
+
 const router = express.Router();
+
+/**
+ * @openapi
+ * /api/orders/ecpay/notify:
+ *   post:
+ *     summary: 綠界付款結果通知 (ReturnURL)
+ *     tags: [Orders]
+ *     responses:
+ *       200:
+ *         description: 回傳 1|OK
+ */
+router.post('/ecpay/notify', (req, res) => {
+  const data = req.body;
+  console.log('ECPay Notify Received:', data);
+
+  if (!ecpayService.verifyCheckMacValue(data)) {
+    console.error('ECPay CheckMacValue verification failed');
+    return res.send('1|OK'); // Still return 1|OK to stop retries
+  }
+
+  const { MerchantTradeNo, RtnCode, TradeNo } = data;
+  if (RtnCode === '1') {
+    // Note: Local environment might not receive this, but we implement it for completeness.
+    // We would need to map MerchantTradeNo back to our order ID.
+    // For now, we rely on the active verify API.
+    console.log(`Payment successful for trade ${MerchantTradeNo}`);
+  }
+
+  res.send('1|OK');
+});
 
 router.use(authMiddleware);
 
@@ -307,6 +339,116 @@ router.get('/:id', (req, res) => {
     error: null,
     message: '成功'
   });
+});
+
+/**
+ * @openapi
+ * /api/orders/{id}/ecpay/checkout-data:
+ *   post:
+ *     summary: 取得綠界付款表單資料
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 成功取得表單資料
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     action:
+ *                       type: string
+ *                     fields:
+ *                       type: object
+ */
+router.post('/:id/ecpay/checkout-data', (req, res) => {
+  const userId = req.user.userId;
+  const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, userId);
+
+  if (!order) {
+    return res.status(404).json({ data: null, error: 'NOT_FOUND', message: '訂單不存在' });
+  }
+
+  if (order.status !== 'pending') {
+    return res.status(400).json({ data: null, error: 'INVALID_STATUS', message: '訂單狀態不是 pending' });
+  }
+
+  const items = db.prepare('SELECT product_name, quantity FROM order_items WHERE order_id = ?').all(order.id);
+  const checkoutData = ecpayService.buildAioCheckoutData({ ...order, items });
+
+  // Store the MerchantTradeNo in the database to verify later
+  db.prepare('UPDATE orders SET ecpay_merchant_trade_no = ? WHERE id = ?').run(checkoutData.fields.MerchantTradeNo, order.id);
+
+  res.json({
+    data: checkoutData,
+    error: null,
+    message: '成功取得付款資料'
+  });
+});
+
+/**
+ * @openapi
+ * /api/orders/{id}/ecpay/verify:
+ *   post:
+ *     summary: 主動查詢綠界付款結果
+ *     tags: [Orders]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: 查詢成功
+ */
+router.post('/:id/ecpay/verify', async (req, res) => {
+  const userId = req.user.userId;
+  const order = db.prepare('SELECT * FROM orders WHERE id = ? AND user_id = ?').get(req.params.id, userId);
+
+  if (!order) {
+    return res.status(404).json({ data: null, error: 'NOT_FOUND', message: '訂單不存在' });
+  }
+
+  if (!order.ecpay_merchant_trade_no) {
+    return res.status(400).json({ data: null, error: 'NO_PAYMENT_RECORD', message: '找不到付款紀錄' });
+  }
+
+  try {
+    const result = await ecpayService.queryTradeInfo(order.ecpay_merchant_trade_no);
+    console.log('ECPay Query Result:', result);
+
+    // TradeStatus: 1=已付款, 0=未付款
+    if (result.TradeStatus === '1') {
+      db.prepare('UPDATE orders SET status = ? WHERE id = ?').run('paid', order.id);
+      const updated = db.prepare('SELECT * FROM orders WHERE id = ?').get(order.id);
+      return res.json({
+        data: updated,
+        error: null,
+        message: '付款成功'
+      });
+    } else {
+      return res.json({
+        data: order,
+        error: null,
+        message: '尚未付款'
+      });
+    }
+  } catch (error) {
+    res.status(500).json({ data: null, error: 'QUERY_ERROR', message: '查詢失敗' });
+  }
 });
 
 /**

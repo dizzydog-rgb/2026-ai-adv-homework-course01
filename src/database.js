@@ -52,11 +52,20 @@ function initializeDatabase() {
       recipient_address TEXT NOT NULL,
       total_amount INTEGER NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'paid', 'failed')),
-
+      ecpay_merchant_trade_no TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
+  `);
 
+  // Handle migration for existing databases
+  try {
+    db.exec('ALTER TABLE orders ADD COLUMN ecpay_merchant_trade_no TEXT;');
+  } catch (e) {
+    // Column already exists or other error we can ignore
+  }
+
+  db.exec(`
     CREATE TABLE IF NOT EXISTS order_items (
       id TEXT PRIMARY KEY,
       order_id TEXT NOT NULL,

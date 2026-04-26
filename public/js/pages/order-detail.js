@@ -24,30 +24,48 @@ createApp({
       cancel: { text: '付款已取消。', cls: 'bg-apricot/10 text-apricot border border-apricot/20' },
     };
 
-    async function simulatePay(action) {
+    const statusChecking = ref(false);
+
+    async function goToEcpay() {
       if (!order.value || paying.value) return;
-      paying.value = true;
-      try {
-        const res = await apiFetch('/api/orders/' + order.value.id + '/pay', {
-          method: 'PATCH',
-          body: JSON.stringify({ action })
-        });
-        order.value = res.data;
-        paymentResult.value = action === 'success' ? 'success' : 'failed';
-      } catch (e) {
-        Notification.show('付款處理失敗', 'error');
-      } finally {
-        paying.value = false;
-      }
+      window.location.href = '/orders/' + order.value.id + '/pay';
     }
 
-    function handlePaySuccess() { simulatePay('success'); }
-    function handlePayFail() { simulatePay('fail'); }
+    async function verifyEcpayPayment() {
+      if (statusChecking.value) return;
+      statusChecking.value = true;
+      try {
+        const res = await apiFetch('/api/orders/' + orderId + '/ecpay/verify', {
+          method: 'POST'
+        });
+        order.value = res.data;
+        if (order.value.status === 'paid') {
+          paymentResult.value = 'success';
+          Notification.show('付款已確認', 'success');
+        } else {
+          Notification.show('尚未收到付款資訊', 'info');
+        }
+      } catch (e) {
+        Notification.show('驗證付款失敗', 'error');
+      } finally {
+        statusChecking.value = false;
+      }
+    }
 
     onMounted(async function () {
       try {
         const res = await apiFetch('/api/orders/' + orderId);
         order.value = res.data;
+
+        // URL payment result handling
+        const urlParams = new URLSearchParams(window.location.search);
+        const result = urlParams.get('payment');
+        if (result) {
+          paymentResult.value = result;
+          if (result === 'success' && order.value.status !== 'paid') {
+            await verifyEcpayPayment();
+          }
+        }
       } catch (e) {
         Notification.show('載入訂單失敗', 'error');
       } finally {
@@ -55,6 +73,6 @@ createApp({
       }
     });
 
-    return { order, loading, paying, paymentResult, statusMap, paymentMessages, handlePaySuccess, handlePayFail };
+    return { order, loading, paying, statusChecking, paymentResult, statusMap, paymentMessages, goToEcpay, verifyEcpayPayment };
   }
 }).mount('#app');

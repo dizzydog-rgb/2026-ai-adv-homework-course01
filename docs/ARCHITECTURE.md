@@ -19,6 +19,8 @@ project-root/
 │
 ├── src/
 │   ├── database.js              # DB 初始化、schema 建立、種子資料 (better-sqlite3)
+│   ├── services/
+│   │   └── ecpayService.js      # ECPay 金流串接邏輯 (AIO, CheckMacValue, QueryTradeInfo)
 │   ├── middleware/
 │   │   ├── authMiddleware.js    # JWT Bearer Token 驗證；解碼後注入 req.user
 │   │   ├── adminMiddleware.js   # RBAC：確認 req.user.role === 'admin'
@@ -83,7 +85,8 @@ project-root/
 - **orders**: `id` (UUID PRIMARY KEY), `order_no` (UNIQUE), `user_id` (FK REFERENCES users), `recipient_name`, `recipient_email`, `recipient_address`, `total_amount`, `status` (CHECK status IN ('pending', 'paid', 'failed')), `created_at`.
 - **order_items**: `id` (UUID PRIMARY KEY), `order_id` (FK REFERENCES orders), `product_id`, `product_name`, `product_price`, `quantity`.
 
-## 金流整合流程 (未來擴充預留)
-- 將實作 `ecpayService.js` 工具模組，用於封裝 CheckMacValue 的計算與 AIO 參數建立。
-- 結帳成功時，訂單先設為 `pending`，並渲染一個自動提交的 HTML 表單跳轉至綠界。
-- 在 `ReturnURL` 端點接收綠界付款結果，驗證無誤後將訂單轉為 `paid`。
+## 金流整合流程 (ECPay AIO)
+- **Service 模組**: `ecpayService.js` 封裝了 SHA256 `CheckMacValue` 的計算邏輯，完全符合綠界官方規範。
+- **付款引導**: 使用者結帳後，前端呼叫 `/ecpay/checkout-data` 取得加密參數，並透過動態隱藏表單導轉至綠界。
+- **主動驗證**: 由於本地開發環境限制，系統在使用者由綠界返回後，主動呼叫 `QueryTradeInfo` API 驗證付款狀態並同步至資料庫。
+- **安全性**: 所有端點皆實作 CheckMacValue 驗章，並使用 Timing-safe 比較確保系統安全。

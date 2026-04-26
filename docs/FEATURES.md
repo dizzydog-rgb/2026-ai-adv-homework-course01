@@ -22,6 +22,15 @@
   4. (預期行為) 扣除商品庫存，並清空目前的購物車。
 - **錯誤情境**: 若送出結帳時購物車為空，回傳 400 (`VALIDATION_ERROR`)。
 
+### 結帳與金流 (ECPay)
+- **行為描述**: 支援綠界科技 (ECPay) AIO 信用卡支付。
+- **付款流程**:
+  1. 訂單建立後，呼叫 `POST /api/orders/:id/ecpay/checkout-data` 取得綠界支付表單。
+  2. 前端導轉至綠界支付頁面。
+  3. 付款後返回商店，系統主動呼叫 `POST /api/orders/:id/ecpay/verify` 透過 `QueryTradeInfo` API 驗證付款狀態。
+- **本地端驗證**: 由於本地開發環境無法接收 ReturnURL 通知，系統採用「主動查詢」機制確保訂單狀態同步。
+- **安全機制**: 實作 SHA256 `CheckMacValue` 簽章與驗章，並使用 Timing-safe 比較防止計時攻擊。
+
 ### 個人中心
 - **行為描述**: `GET /api/orders` 取得個人的歷史訂單列表，`GET /api/orders/:id` 取得單筆訂單的詳細購買明細。皆需 JWT 驗證。
 

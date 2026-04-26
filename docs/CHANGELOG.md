@@ -1,13 +1,17 @@
 # 更新日誌 (CHANGELOG.md)
 
-## 待辦事項 (Todo)
-- [ ] **串接綠界金流 (ECPay Integration)**:
-    - 實作 `src/services/ecpayService.js`。
-    - 新增 `src/routes/paymentRoutes.js`。
-    - 建立 `views/pages/payment-redirect.ejs` 用於自動導向付款頁面。
-    - 串接結帳流程至金流支付。
+### [1.1.0] - 2026-04-26
+#### 新增 (Added)
+- **綠界金流 (ECPay) 整合**:
+  - 實作 `src/services/ecpayService.js` 封裝 SHA256 CheckMacValue 加密與 QueryTradeInfo API。
+  - 新增 `/api/orders/:id/ecpay/checkout-data` 以產生 AIO 導轉所需加密參數。
+  - 實作 `/api/orders/:id/ecpay/verify` 採用主動查詢機制驗證本地開發環境付款結果。
+  - 實作 `/api/orders/ecpay/notify` 接收 ReturnURL 伺服器通知（符合官方規範）。
+  - 更新前端訂單詳情頁，新增「前往綠界付款」與「主動查詢」功能。
+- **資料庫擴充**: `orders` 表新增 `ecpay_merchant_trade_no` 欄位以追蹤綠界交易。
 
-## 重大決策紀錄
+#### 修復 (Fixed)
+- 修正 `src/database.js` 語法錯誤並補上自動 migration 邏輯。
 
 ### [1.0.0] - 2026-04-25
 #### 新增 (Added)

@@ -55,6 +55,22 @@ router.get('/orders/:id', function (req, res) {
   });
 });
 
+router.get('/orders/:id/pay', function (req, res) {
+  renderFront(res, 'payment-redirect', {
+    title: '導轉金流中',
+    pageScript: 'payment-redirect',
+    orderId: req.params.id
+  });
+});
+
+router.get('/ecpay/result', function (req, res) {
+  renderFront(res, 'payment-result', {
+    title: '驗證付款結果',
+    pageScript: 'payment-result',
+    orderId: req.query.orderId
+  });
+});
+
 // Admin pages
 router.get('/admin/products', function (req, res) {
   renderAdmin(res, 'products', {
